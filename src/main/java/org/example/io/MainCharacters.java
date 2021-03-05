@@ -3,8 +3,6 @@ package org.example.io;
 import java.io.*;
 
 public class MainCharacters {
-	private static final String directory =
-			System.getProperty("user.home") + File.separator + "data_files" + File.separator;
 
 	public static void main(String[] args) {
 		writeStringToFile();
@@ -13,7 +11,7 @@ public class MainCharacters {
 	}
 
 	public static void writeStringToFile() {
-		try (Writer out = new FileWriter(directory + "CHARACTERstringTest.txt")) {
+		try (Writer out = new FileWriter(Directory.FILE_DIRECTORY.getPath() + "CHARACTERstringTest.txt")) {
 			String word = "Hello";
 			out.write(word);
 		} catch (IOException ioException) {
@@ -22,7 +20,8 @@ public class MainCharacters {
 	}
 
 	public static void writeStringBufferedToFile(String message) {
-		try (Writer out = new FileWriter(directory + "errorslogs.txt"); BufferedWriter bw = new BufferedWriter(out)) {
+		try (Writer out = new FileWriter(Directory.FILE_DIRECTORY.getPath() + "errorslogs.txt");
+			 BufferedWriter bw = new BufferedWriter(out)) {
 			bw.write(message);
 		} catch (IOException ioException) {
 			ioException.printStackTrace();
@@ -30,7 +29,7 @@ public class MainCharacters {
 	}
 
 	public static void readStringFromFile() {
-		try (Reader in = new FileReader(directory + "stringTest.txt")) {
+		try (Reader in = new FileReader(Directory.FILE_DIRECTORY.getPath() + "stringTest.txt")) {
 			int character;
 			while ((character = in.read()) != -1) {
 				System.out.println((char) character);

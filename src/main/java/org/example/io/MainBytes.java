@@ -3,10 +3,6 @@ package org.example.io;
 import java.io.*;
 
 public class MainBytes {
-
-	private static final String directory =
-			System.getProperty("user.home") + File.separator + "data_files" + File.separator;
-
 	public static void main(String[] args) {
 		// BYTES:
 		writeBytesToFile();
@@ -19,8 +15,8 @@ public class MainBytes {
 	}
 
 	private static void copyBytesFromFileToFile() {
-		try (InputStream in = new FileInputStream(directory + "stringTest.txt");
-			 OutputStream out = new FileOutputStream(directory + "stringTestCopy.txt")) {
+		try (InputStream in = new FileInputStream(Directory.FILE_DIRECTORY.getPath() + "stringTest.txt");
+			 OutputStream out = new FileOutputStream(Directory.FILE_DIRECTORY.getPath() + "stringTestCopy.txt")) {
 			in.transferTo(out);
 		} catch (IOException ioException) {
 			ioException.printStackTrace();
@@ -28,7 +24,7 @@ public class MainBytes {
 	}
 
 	public static void writeByteBufferedToFile() {
-		try (OutputStream out = new FileOutputStream(directory + "stringTest2.txt");
+		try (OutputStream out = new FileOutputStream(Directory.FILE_DIRECTORY.getPath() + "stringTest2.txt");
 			 BufferedOutputStream bos = new BufferedOutputStream(out)) {
 			String word = "Hello";
 			bos.write(word.getBytes());
@@ -39,7 +35,7 @@ public class MainBytes {
 	}
 
 	public static void readByteBufferedFromFile() {
-		try (InputStream in = new FileInputStream(directory + "stringTest2.txt");
+		try (InputStream in = new FileInputStream(Directory.FILE_DIRECTORY.getPath() + "stringTest2.txt");
 			 BufferedInputStream bos = new BufferedInputStream(in)) {
 			byte[] bytes = bos.readAllBytes();
 
@@ -53,7 +49,7 @@ public class MainBytes {
 	}
 
 	public static void writeByteStringToFile() {
-		try (FileOutputStream out = new FileOutputStream(directory + "stringTest.txt")) {
+		try (FileOutputStream out = new FileOutputStream(Directory.FILE_DIRECTORY.getPath() + "stringTest.txt")) {
 			String word = "Hello";
 			out.write(word.getBytes());
 		} catch (IOException ioException) {
@@ -62,7 +58,7 @@ public class MainBytes {
 	}
 
 	public static void readByteStringFromFile() {
-		try (FileInputStream in = new FileInputStream(directory + "stringTest.txt")) {
+		try (FileInputStream in = new FileInputStream(Directory.FILE_DIRECTORY.getPath() + "stringTest.txt")) {
 			byte[] bytes = in.readAllBytes();
 			for (byte aByte : bytes) {
 				System.out.println(aByte);
@@ -73,7 +69,7 @@ public class MainBytes {
 	}
 
 	public static void writeBytesToFile() {
-		try (FileOutputStream out = new FileOutputStream(directory + "test.txt")) {
+		try (FileOutputStream out = new FileOutputStream(Directory.FILE_DIRECTORY.getPath() + "test.txt")) {
 			out.write(100);
 			out.write(127);
 		} catch (IOException ioException) {
@@ -82,7 +78,7 @@ public class MainBytes {
 	}
 
 	public static void readBytesFromFile() {
-		try (FileInputStream in = new FileInputStream(directory + "test.txt")) {
+		try (FileInputStream in = new FileInputStream(Directory.FILE_DIRECTORY.getPath() + "test.txt")) {
 			byte[] bytes = in.readAllBytes();
 			for (byte aByte : bytes) {
 				System.out.println(aByte);
