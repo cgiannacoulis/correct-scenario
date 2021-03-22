@@ -1,14 +1,20 @@
 package org.example.database;
 
+import com.thedeanda.lorem.Lorem;
+import com.thedeanda.lorem.LoremIpsum;
 import org.h2.tools.Server;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Arrays;
 import java.util.Properties;
+import java.util.concurrent.ThreadLocalRandom;
 
 import static java.lang.System.exit;
 
@@ -17,6 +23,7 @@ public class DbDemo {
 	private static final String DB_USERNAME = "sa";
 	private static final String DB_PASSWORD = "";
 	private final Properties sqlCommands = new Properties();
+	private final Lorem generator = LoremIpsum.getInstance();
 
 	private Server h2Server;
 
@@ -31,7 +38,12 @@ public class DbDemo {
 		Connection connection = demo.registerDatabaseDriver();
 		// Create table
 		demo.createTable(connection);
-		// Insert Data
+		// Insert data
+		demo.insertData(connection);
+		// Insert data in batch mode
+		demo.batchInsertData(connection);
+		// Read data
+		demo.selectData(connection);
 		// SQL Commands
 
 		//Introduce artificial delay
@@ -83,6 +95,66 @@ public class DbDemo {
 
 			System.out.println("Statement returned " + resultRows);
 		} catch (SQLException throwables) {
+			throwables.printStackTrace();
+		}
+	}
+
+	private void insertData(Connection connection) {
+		try (Statement statement = connection.createStatement()) {
+			int resultRows = statement.executeUpdate(sqlCommands.getProperty("insert.table.001"));
+			System.out.println("Statement returned " + resultRows);
+			resultRows = statement.executeUpdate(sqlCommands.getProperty("insert.table.002"));
+			System.out.println("Statement returned " + resultRows);
+			resultRows = statement.executeUpdate(sqlCommands.getProperty("insert.table.003"));
+			System.out.println("Statement returned " + resultRows);
+			resultRows = statement.executeUpdate(sqlCommands.getProperty("insert.table.004"));
+			System.out.println("Statement returned " + resultRows);
+			resultRows = statement.executeUpdate(sqlCommands.getProperty("insert.table.005"));
+			System.out.println("Statement returned " + resultRows);
+
+		} catch (SQLException throwables) {
+			System.err.println("Error occurred while inserting data");
+			throwables.printStackTrace();
+		}
+	}
+
+	private void batchInsertData(Connection connection) {
+		try (PreparedStatement preparedStatement = connection.prepareStatement(
+				sqlCommands.getProperty("insert.table.000"))) {
+			generateData(preparedStatement, 1000);
+
+			int[] affectedRows = preparedStatement.executeBatch();
+			System.out.println("Rows inserted " + Arrays.stream(affectedRows).sum());
+
+		} catch (SQLException throwables) {
+			System.err.println("Error occurred while retrieving data");
+			throwables.printStackTrace();
+		}
+	}
+
+	private void generateData(PreparedStatement preparedStatement, int howMany) throws SQLException {
+		for (int i = 1; i <= howMany; i++) {
+			preparedStatement.clearParameters();
+
+			preparedStatement.setLong(1, 1005 + i);
+			preparedStatement.setString(2, generator.getFirstName());
+			preparedStatement.setString(3, generator.getLastName());
+			preparedStatement.setInt(4, ThreadLocalRandom.current().nextInt(18, 70));
+			preparedStatement.addBatch();
+		}
+	}
+
+	private void selectData(Connection connection) {
+		try (Statement statement = connection.createStatement(); ResultSet resultSet = statement.executeQuery(
+				sqlCommands.getProperty("select.table.001"))) {
+
+			while (resultSet.next()) {
+				System.out.println("id:" + resultSet.getLong("ID") + ", firstName:" + resultSet.getString("FIRSTNAME") +
+										   ", lastName:" + resultSet.getString("LASTNAME") + ", age:" +
+										   resultSet.getInt("AGE"));
+			}
+		} catch (SQLException throwables) {
+			System.err.println("Error occurred while retrieving data");
 			throwables.printStackTrace();
 		}
 	}
