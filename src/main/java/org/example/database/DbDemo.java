@@ -44,10 +44,16 @@ public class DbDemo {
 		demo.batchInsertData(connection);
 		// Read data
 		demo.selectData(connection);
-		// SQL Commands
 
-		//Introduce artificial delay
-		Thread.sleep(3000);
+		// Update data
+		demo.updateData(connection);
+		// Read data
+		demo.selectData(connection);
+
+		// Delete data
+		demo.deleteData(connection);
+		// Read data
+		demo.selectData(connection);
 
 		// Stop H2 database server
 		demo.stopH2Server();
@@ -132,18 +138,6 @@ public class DbDemo {
 		}
 	}
 
-	private void generateData(PreparedStatement preparedStatement, int howMany) throws SQLException {
-		for (int i = 1; i <= howMany; i++) {
-			preparedStatement.clearParameters();
-
-			preparedStatement.setLong(1, 1005 + i);
-			preparedStatement.setString(2, generator.getFirstName());
-			preparedStatement.setString(3, generator.getLastName());
-			preparedStatement.setInt(4, ThreadLocalRandom.current().nextInt(18, 70));
-			preparedStatement.addBatch();
-		}
-	}
-
 	private void selectData(Connection connection) {
 		try (Statement statement = connection.createStatement(); ResultSet resultSet = statement.executeQuery(
 				sqlCommands.getProperty("select.table.001"))) {
@@ -159,6 +153,30 @@ public class DbDemo {
 		}
 	}
 
+	private void updateData(Connection connection) {
+		try (Statement statement = connection.createStatement()) {
+			int resultRows = statement.executeUpdate(sqlCommands.getProperty("update.table.001"));
+
+			System.out.println("Rows updated " + resultRows);
+
+		} catch (SQLException throwables) {
+			System.err.println("Error occurred while updating data");
+			throwables.printStackTrace();
+		}
+	}
+
+	private void deleteData(Connection connection) {
+		try (Statement statement = connection.createStatement()) {
+			int resultRows = statement.executeUpdate(sqlCommands.getProperty("delete.table.001"));
+
+			System.out.println("Rows updated " + resultRows);
+
+		} catch (SQLException throwables) {
+			System.err.println("Error occurred while updating data");
+			throwables.printStackTrace();
+		}
+	}
+
 	private void stopH2Server() {
 		if (h2Server == null) {
 			return;
@@ -168,6 +186,18 @@ public class DbDemo {
 			h2Server.stop();
 			h2Server.shutdown();
 			System.out.println("H2 Database server has been shutdown.");
+		}
+	}
+
+	private void generateData(PreparedStatement preparedStatement, int howMany) throws SQLException {
+		for (int i = 1; i <= howMany; i++) {
+			preparedStatement.clearParameters();
+
+			preparedStatement.setLong(1, 1005 + i);
+			preparedStatement.setString(2, generator.getFirstName());
+			preparedStatement.setString(3, generator.getLastName());
+			preparedStatement.setInt(4, ThreadLocalRandom.current().nextInt(18, 70));
+			preparedStatement.addBatch();
 		}
 	}
 }
