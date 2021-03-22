@@ -38,25 +38,54 @@ public class DbDemo {
 		Connection connection = demo.registerDatabaseDriver();
 		// Create table
 		demo.createTable(connection);
+
 		// Insert data
 		demo.insertData(connection);
 		// Insert data in batch mode
 		demo.batchInsertData(connection);
-		// Read data
 		demo.selectData(connection);
+
+		demo.enableTransationMode(connection);
 
 		// Update data
 		demo.updateData(connection);
-		// Read data
 		demo.selectData(connection);
+		demo.commit(connection, true);
 
 		// Delete data
 		demo.deleteData(connection);
-		// Read data
 		demo.selectData(connection);
+		Thread.sleep(3000);
+
+		demo.commit(connection, false);
+		demo.selectData(connection);
+
+		Thread.sleep(10000);
 
 		// Stop H2 database server
 		demo.stopH2Server();
+	}
+
+	private void enableTransationMode(Connection connection) {
+		try {
+			connection.setAutoCommit(false);
+		} catch (SQLException throwables) {
+			System.out.println("Unable to enable transaction mode");
+			throwables.printStackTrace();
+		}
+	}
+
+	private void commit(Connection connection, boolean mode) {
+		try {
+			if (mode) {
+				connection.commit();
+			} else {
+				connection.rollback();
+			}
+		} catch (SQLException throwables) {
+			System.out.println("Unable to enable transaction mode");
+			throwables.printStackTrace();
+		}
 	}
 
 	private void loadSqlCommands() {
