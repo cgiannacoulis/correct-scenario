@@ -22,14 +22,14 @@ import static java.lang.System.exit;
 
 public class DbDemo {
 	private static final Logger logger = LoggerFactory.getLogger(DbDemo.class);
-	private static final String DB_URL = "jdbc:h2:mem:sample";
+	private static final String DB_URL = "jdbc:h2:~/sample";
 	private static final String DB_USERNAME = "sa";
 	private static final String DB_PASSWORD = "";
 	private final Properties sqlCommands = new Properties();
 	private final Lorem generator = LoremIpsum.getInstance();
 	private HikariDataSource hikariDatasource;
 
-	private Server h2Server;
+	private Server h2Server, webServer;
 
 	public static void main(String[] args) throws InterruptedException {
 		DbDemo demo = new DbDemo();
@@ -42,12 +42,13 @@ public class DbDemo {
 		demo.initiateConnectionPooling();
 
 		// Create table
-		demo.createTable();
+		if (demo.createTable()) {
+			// Insert data
+			demo.insertData();
+			// Insert data in batch mode
+			demo.batchInsertData();
+		}
 
-		// Insert data
-		demo.insertData();
-		// Insert data in batch mode
-		demo.batchInsertData();
 		demo.selectData();
 
 		// Update data
@@ -84,11 +85,14 @@ public class DbDemo {
 		try {
 			h2Server = Server.createTcpServer("-tcpAllowOthers", "-tcpDaemon");
 			h2Server.start();
+			webServer = Server.createWebServer("-webAllowOthers", "-webDaemon");
+			webServer.start();
 			logger.info("H2 Database server is now accepting connections.");
 		} catch (SQLException throwables) {
 			logger.error("Unable to start H2 database server.", throwables);
 			exit(-1);
 		}
+		logger.info("H2 server has started with status '{}'.", h2Server.getStatus());
 	}
 
 	private void initiateConnectionPooling() {
@@ -110,13 +114,15 @@ public class DbDemo {
 		hikariDatasource = new HikariDataSource(config);
 	}
 
-	private void createTable() {
+	private boolean createTable() {
 		try (Statement statement = hikariDatasource.getConnection().createStatement()) {
 			int resultRows = statement.executeUpdate(sqlCommands.getProperty("create.table.001"));
 
 			logger.debug("Statement returned {}.", resultRows);
+			return true;
 		} catch (SQLException throwables) {
-			logger.error("Unable to create target database table.", throwables);
+			logger.warn("Unable to create target database table. It already exists.");
+			return false;
 		}
 	}
 
@@ -192,15 +198,19 @@ public class DbDemo {
 	}
 
 	private void stopH2Server() {
-		if (h2Server == null) {
+		if (h2Server == null || webServer == null) {
 			return;
 		}
 
 		if (h2Server.isRunning(true)) {
 			h2Server.stop();
 			h2Server.shutdown();
-			logger.info("H2 Database server has been shutdown.");
 		}
+		if (webServer.isRunning(true)) {
+			webServer.stop();
+			webServer.shutdown();
+		}
+		logger.info("H2 Database server has been shutdown.");
 	}
 
 	private void generateData(PreparedStatement preparedStatement, int howMany) throws SQLException {
