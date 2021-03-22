@@ -2,14 +2,14 @@ package org.example.database;
 
 import com.thedeanda.lorem.Lorem;
 import com.thedeanda.lorem.LoremIpsum;
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
 import org.h2.tools.Server;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -27,6 +27,7 @@ public class DbDemo {
 	private static final String DB_PASSWORD = "";
 	private final Properties sqlCommands = new Properties();
 	private final Lorem generator = LoremIpsum.getInstance();
+	private HikariDataSource hikariDatasource;
 
 	private Server h2Server;
 
@@ -37,37 +38,35 @@ public class DbDemo {
 
 		// Start H2 database server
 		demo.startH2Server();
-		// Register JDBC driver and retrieve a connection
-		Connection connection = demo.registerDatabaseDriver();
+
+		demo.initiateConnectionPooling();
+
 		// Create table
-		demo.createTable(connection);
+		demo.createTable();
 
 		// Insert data
-		demo.insertData(connection);
+		demo.insertData();
 		// Insert data in batch mode
-		demo.batchInsertData(connection);
-		demo.selectData(connection);
-
-		demo.enableTransactionMode(connection);
+		demo.batchInsertData();
+		demo.selectData();
 
 		// Update data
-		demo.updateData(connection);
-		demo.selectData(connection);
-		demo.commit(connection, true);
+		demo.updateData();
+		demo.selectData();
 
 		// Delete data
-		demo.deleteData(connection);
-		demo.selectData(connection);
-		Thread.sleep(3000);
+		demo.deleteData();
+		demo.selectData();
 
-		demo.commit(connection, false);
-		demo.selectData(connection);
+		demo.selectData();
 
-		Thread.sleep(10000);
+		// Stop H2 database server via shutdown hook
+		Runtime.getRuntime().addShutdownHook(new Thread(() -> demo.stopH2Server()));
 
-		// Stop H2 database server
-		demo.stopH2Server();
+		while (true) {
+		}
 	}
+
 
 	private void loadSqlCommands() {
 		try (InputStream inputStream = DbDemo.class.getClassLoader().getResourceAsStream("sql.properties")) {
@@ -92,19 +91,27 @@ public class DbDemo {
 		}
 	}
 
-	private Connection registerDatabaseDriver() {
-		Connection connection = null;
-		try {
-			connection = DriverManager.getConnection(DB_URL, DB_USERNAME, DB_PASSWORD);
-		} catch (SQLException throwables) {
-			logger.error("Unable to get a connection to H2 database server.", throwables);
-			exit(-1);
-		}
-		return connection;
+	private void initiateConnectionPooling() {
+		HikariConfig config = new HikariConfig();
+		config.setDriverClassName("org.h2.Driver");
+		config.setJdbcUrl(DB_URL);
+		config.setUsername(DB_USERNAME);
+		config.setPassword(DB_PASSWORD);
+
+		config.setConnectionTimeout(10000);
+		config.setIdleTimeout(60000);
+		config.setMaxLifetime(1800000);
+		config.setMinimumIdle(1);
+		config.setMaxLifetime(5);
+		config.setAutoCommit(true);
+
+		config.addDataSourceProperty("cachePrepStmts", "true");
+		config.addDataSourceProperty("prepStmtsCacheSize", "500");
+		hikariDatasource = new HikariDataSource(config);
 	}
 
-	private void createTable(Connection connection) {
-		try (Statement statement = connection.createStatement()) {
+	private void createTable() {
+		try (Statement statement = hikariDatasource.getConnection().createStatement()) {
 			int resultRows = statement.executeUpdate(sqlCommands.getProperty("create.table.001"));
 
 			logger.debug("Statement returned {}.", resultRows);
@@ -113,8 +120,8 @@ public class DbDemo {
 		}
 	}
 
-	private void insertData(Connection connection) {
-		try (Statement statement = connection.createStatement()) {
+	private void insertData() {
+		try (Statement statement = hikariDatasource.getConnection().createStatement()) {
 			int resultRows = statement.executeUpdate(sqlCommands.getProperty("insert.table.001"));
 			logger.debug("Statement returned {}.", resultRows);
 			resultRows = statement.executeUpdate(sqlCommands.getProperty("insert.table.002"));
@@ -131,10 +138,10 @@ public class DbDemo {
 		}
 	}
 
-	private void batchInsertData(Connection connection) {
-		try (PreparedStatement preparedStatement = connection.prepareStatement(
+	private void batchInsertData() {
+		try (PreparedStatement preparedStatement = hikariDatasource.getConnection().prepareStatement(
 				sqlCommands.getProperty("insert.table.000"))) {
-			generateData(preparedStatement, 1000);
+			generateData(preparedStatement, 10);
 
 			int[] affectedRows = preparedStatement.executeBatch();
 			logger.debug("Rows inserted {}.", Arrays.stream(affectedRows).sum());
@@ -144,9 +151,9 @@ public class DbDemo {
 		}
 	}
 
-	private void selectData(Connection connection) {
-		try (Statement statement = connection.createStatement(); ResultSet resultSet = statement.executeQuery(
-				sqlCommands.getProperty("select.table.001"))) {
+	private void selectData() {
+		try (Statement statement = hikariDatasource.getConnection().createStatement();
+			 ResultSet resultSet = statement.executeQuery(sqlCommands.getProperty("select.table.001"))) {
 
 			while (resultSet.next()) {
 				//@formatter:off
@@ -162,16 +169,8 @@ public class DbDemo {
 		}
 	}
 
-	private void enableTransactionMode(Connection connection) {
-		try {
-			connection.setAutoCommit(false);
-		} catch (SQLException throwables) {
-			logger.warn("Unable to persist/rollback transaction.", throwables);
-		}
-	}
-
-	private void updateData(Connection connection) {
-		try (Statement statement = connection.createStatement()) {
+	private void updateData() {
+		try (Statement statement = hikariDatasource.getConnection().createStatement()) {
 			int resultRows = statement.executeUpdate(sqlCommands.getProperty("update.table.001"));
 
 			logger.debug("Rows updated {}.", resultRows);
@@ -181,20 +180,8 @@ public class DbDemo {
 		}
 	}
 
-	private void commit(Connection connection, boolean mode) {
-		try {
-			if (mode) {
-				connection.commit();
-			} else {
-				connection.rollback();
-			}
-		} catch (SQLException throwables) {
-			logger.warn("Unable to enable transaction mode.", throwables);
-		}
-	}
-
-	private void deleteData(Connection connection) {
-		try (Statement statement = connection.createStatement()) {
+	private void deleteData() {
+		try (Statement statement = hikariDatasource.getConnection().createStatement()) {
 			int resultRows = statement.executeUpdate(sqlCommands.getProperty("delete.table.001"));
 
 			logger.debug("Rows updated {}.", resultRows);
