@@ -2,9 +2,6 @@ package org.example.database;
 
 import com.thedeanda.lorem.Lorem;
 import com.thedeanda.lorem.LoremIpsum;
-import com.zaxxer.hikari.HikariConfig;
-import com.zaxxer.hikari.HikariDataSource;
-import org.h2.tools.Server;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,24 +19,17 @@ import static java.lang.System.exit;
 
 public class DbDemo {
 	private static final Logger logger = LoggerFactory.getLogger(DbDemo.class);
-	private static final String DB_URL = "jdbc:h2:~/sample";
-	private static final String DB_USERNAME = "sa";
-	private static final String DB_PASSWORD = "";
 	private final Properties sqlCommands = new Properties();
 	private final Lorem generator = LoremIpsum.getInstance();
-	private HikariDataSource hikariDatasource;
-
-	private Server h2Server, webServer;
 
 	public static void main(String[] args) throws InterruptedException {
 		DbDemo demo = new DbDemo();
 		// Load SQL commands
 		demo.loadSqlCommands();
 
+		DbInstance dbInstance = new DbInstance();
 		// Start H2 database server
-		demo.startH2Server();
-
-		demo.initiateConnectionPooling();
+		dbInstance.startH2Server();
 
 		// Create table
 		if (demo.createTable()) {
@@ -62,12 +52,11 @@ public class DbDemo {
 		demo.selectData();
 
 		// Stop H2 database server via shutdown hook
-		Runtime.getRuntime().addShutdownHook(new Thread(() -> demo.stopH2Server()));
+		Runtime.getRuntime().addShutdownHook(new Thread(() -> dbInstance.stopH2Server()));
 
 		while (true) {
 		}
 	}
-
 
 	private void loadSqlCommands() {
 		try (InputStream inputStream = DbDemo.class.getClassLoader().getResourceAsStream("sql.properties")) {
@@ -81,41 +70,8 @@ public class DbDemo {
 		}
 	}
 
-	private void startH2Server() {
-		try {
-			h2Server = Server.createTcpServer("-tcpAllowOthers", "-tcpDaemon");
-			h2Server.start();
-			webServer = Server.createWebServer("-webAllowOthers", "-webDaemon");
-			webServer.start();
-			logger.info("H2 Database server is now accepting connections.");
-		} catch (SQLException throwables) {
-			logger.error("Unable to start H2 database server.", throwables);
-			exit(-1);
-		}
-		logger.info("H2 server has started with status '{}'.", h2Server.getStatus());
-	}
-
-	private void initiateConnectionPooling() {
-		HikariConfig config = new HikariConfig();
-		config.setDriverClassName("org.h2.Driver");
-		config.setJdbcUrl(DB_URL);
-		config.setUsername(DB_USERNAME);
-		config.setPassword(DB_PASSWORD);
-
-		config.setConnectionTimeout(10000);
-		config.setIdleTimeout(60000);
-		config.setMaxLifetime(1800000);
-		config.setMinimumIdle(1);
-		config.setMaxLifetime(5);
-		config.setAutoCommit(true);
-
-		config.addDataSourceProperty("cachePrepStmts", "true");
-		config.addDataSourceProperty("prepStmtsCacheSize", "500");
-		hikariDatasource = new HikariDataSource(config);
-	}
-
 	private boolean createTable() {
-		try (Statement statement = hikariDatasource.getConnection().createStatement()) {
+		try (Statement statement = ConnectionPoolProvider.getConnection().createStatement()) {
 			int resultRows = statement.executeUpdate(sqlCommands.getProperty("create.table.001"));
 
 			logger.debug("Statement returned {}.", resultRows);
@@ -127,7 +83,7 @@ public class DbDemo {
 	}
 
 	private void insertData() {
-		try (Statement statement = hikariDatasource.getConnection().createStatement()) {
+		try (Statement statement = ConnectionPoolProvider.getConnection().createStatement()) {
 			int resultRows = statement.executeUpdate(sqlCommands.getProperty("insert.table.001"));
 			logger.debug("Statement returned {}.", resultRows);
 			resultRows = statement.executeUpdate(sqlCommands.getProperty("insert.table.002"));
@@ -145,7 +101,7 @@ public class DbDemo {
 	}
 
 	private void batchInsertData() {
-		try (PreparedStatement preparedStatement = hikariDatasource.getConnection().prepareStatement(
+		try (PreparedStatement preparedStatement = ConnectionPoolProvider.getConnection().prepareStatement(
 				sqlCommands.getProperty("insert.table.000"))) {
 			generateData(preparedStatement, 10);
 
@@ -158,7 +114,7 @@ public class DbDemo {
 	}
 
 	private void selectData() {
-		try (Statement statement = hikariDatasource.getConnection().createStatement();
+		try (Statement statement = ConnectionPoolProvider.getConnection().createStatement();
 			 ResultSet resultSet = statement.executeQuery(sqlCommands.getProperty("select.table.001"))) {
 
 			while (resultSet.next()) {
@@ -176,7 +132,7 @@ public class DbDemo {
 	}
 
 	private void updateData() {
-		try (Statement statement = hikariDatasource.getConnection().createStatement()) {
+		try (Statement statement = ConnectionPoolProvider.getConnection().createStatement()) {
 			int resultRows = statement.executeUpdate(sqlCommands.getProperty("update.table.001"));
 
 			logger.debug("Rows updated {}.", resultRows);
@@ -187,7 +143,7 @@ public class DbDemo {
 	}
 
 	private void deleteData() {
-		try (Statement statement = hikariDatasource.getConnection().createStatement()) {
+		try (Statement statement = ConnectionPoolProvider.getConnection().createStatement()) {
 			int resultRows = statement.executeUpdate(sqlCommands.getProperty("delete.table.001"));
 
 			logger.debug("Rows updated {}.", resultRows);
@@ -195,22 +151,6 @@ public class DbDemo {
 		} catch (SQLException throwables) {
 			logger.error("Error occurred while updating data.", throwables);
 		}
-	}
-
-	private void stopH2Server() {
-		if (h2Server == null || webServer == null) {
-			return;
-		}
-
-		if (h2Server.isRunning(true)) {
-			h2Server.stop();
-			h2Server.shutdown();
-		}
-		if (webServer.isRunning(true)) {
-			webServer.stop();
-			webServer.shutdown();
-		}
-		logger.info("H2 Database server has been shutdown.");
 	}
 
 	private void generateData(PreparedStatement preparedStatement, int howMany) throws SQLException {
