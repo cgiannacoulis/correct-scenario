@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -71,7 +72,8 @@ public class DbDemo {
 	}
 
 	private boolean createTable() {
-		try (Statement statement = ConnectionPoolProvider.getConnection().createStatement()) {
+		try (Connection connection = ConnectionPoolProvider.getConnection();
+			 Statement statement = connection.createStatement()) {
 			int resultRows = statement.executeUpdate(sqlCommands.getProperty("create.table.001"));
 
 			logger.debug("Statement returned {}.", resultRows);
@@ -83,7 +85,8 @@ public class DbDemo {
 	}
 
 	private void insertData() {
-		try (Statement statement = ConnectionPoolProvider.getConnection().createStatement()) {
+		try (Connection connection = ConnectionPoolProvider.getConnection();
+			 Statement statement = connection.createStatement()) {
 			int resultRows = statement.executeUpdate(sqlCommands.getProperty("insert.table.001"));
 			logger.debug("Statement returned {}.", resultRows);
 			resultRows = statement.executeUpdate(sqlCommands.getProperty("insert.table.002"));
@@ -101,8 +104,9 @@ public class DbDemo {
 	}
 
 	private void batchInsertData() {
-		try (PreparedStatement preparedStatement = ConnectionPoolProvider.getConnection().prepareStatement(
-				sqlCommands.getProperty("insert.table.000"))) {
+		try (Connection connection = ConnectionPoolProvider.getConnection();
+			 PreparedStatement preparedStatement = connection.prepareStatement(
+					 sqlCommands.getProperty("insert.table.000"))) {
 			generateData(preparedStatement, 10);
 
 			int[] affectedRows = preparedStatement.executeBatch();
@@ -114,8 +118,9 @@ public class DbDemo {
 	}
 
 	private void selectData() {
-		try (Statement statement = ConnectionPoolProvider.getConnection().createStatement();
-			 ResultSet resultSet = statement.executeQuery(sqlCommands.getProperty("select.table.001"))) {
+		try (Connection connection = ConnectionPoolProvider.getConnection();
+			 Statement statement = connection.createStatement(); ResultSet resultSet = statement.executeQuery(
+				sqlCommands.getProperty("select.table.001"))) {
 
 			while (resultSet.next()) {
 				//@formatter:off
@@ -132,7 +137,8 @@ public class DbDemo {
 	}
 
 	private void updateData() {
-		try (Statement statement = ConnectionPoolProvider.getConnection().createStatement()) {
+		try (Connection connection = ConnectionPoolProvider.getConnection();
+			 Statement statement = connection.createStatement()) {
 			int resultRows = statement.executeUpdate(sqlCommands.getProperty("update.table.001"));
 
 			logger.debug("Rows updated {}.", resultRows);
@@ -143,7 +149,8 @@ public class DbDemo {
 	}
 
 	private void deleteData() {
-		try (Statement statement = ConnectionPoolProvider.getConnection().createStatement()) {
+		try (Connection connection = ConnectionPoolProvider.getConnection();
+			 Statement statement = connection.createStatement()) {
 			int resultRows = statement.executeUpdate(sqlCommands.getProperty("delete.table.001"));
 
 			logger.debug("Rows updated {}.", resultRows);
